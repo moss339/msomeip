@@ -12,6 +12,18 @@ option(BUILD_EXAMPLES "Build examples" ON)
 # Find packages
 find_package(Threads REQUIRED)
 
+# Find mshm
+set(MSHM_ROOT "/mnt/data/workspace/moss/mshm" CACHE PATH "mshm root directory")
+set(MSHM_LIBRARY "/mnt/data/workspace/moss/mshm/build/src/libmshm.a" CACHE FILEPATH "mshm library")
+set(MSHM_INCLUDE_DIR "/mnt/data/workspace/moss/mshm/include" CACHE PATH "mshm include directory")
+
+# Create imported target for mshm
+add_library(mshm STATIC IMPORTED)
+set_target_properties(mshm PROPERTIES
+    IMPORTED_LOCATION "${MSHM_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${MSHM_INCLUDE_DIR}"
+)
+
 # Main library
 add_library(msomeip STATIC
     src/message/message.cpp
@@ -30,6 +42,8 @@ target_include_directories(msomeip
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${MSHM_INCLUDE_DIR}
 )
 
 target_link_libraries(msomeip
