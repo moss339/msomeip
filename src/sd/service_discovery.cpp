@@ -1,5 +1,6 @@
 #include "msomeip/sd/service_discovery.h"
 #include "msomeip/message/message.h"
+#include "msomeip/sd/service_entry.h"
 
 #include <cstring>
 #include <algorithm>
@@ -351,27 +352,121 @@ void ServiceDiscovery::handle_subscribe_eventgroup_ack(const ServiceEntry& entry
 }
 
 void ServiceDiscovery::send_find_service(ServiceId service, InstanceId instance) {
-    // This would send a multicast message
-    // Implementation depends on transport layer
+    if (!send_message_callback_) return;
+
+    auto msg = Message::create_notification(
+        SOMEIP_SD_SERVICE_ID,
+        SOMEIP_SD_INSTANCE_ID,
+        SOMEIP_SD_METHOD_FIND_SERVICE);
+
+    auto entry = ServiceEntry::create_find_service(service, instance);
+    auto entry_data = entry.serialize();
+
+    msg->set_payload(entry_data);
+    msg->set_interface_version(1);
+    msg->set_return_code(ReturnCode::E_OK);
+
+    send_message_callback_(msg, config_.multicast_address, config_.port);
 }
 
 void ServiceDiscovery::send_offer_service(const ServiceInfo& info) {
-    // This would send a multicast message
-    // Implementation depends on transport layer
+    if (!send_message_callback_) return;
+
+    auto msg = Message::create_notification(
+        SOMEIP_SD_SERVICE_ID,
+        SOMEIP_SD_INSTANCE_ID,
+        SOMEIP_SD_METHOD_OFFER_SERVICE);
+
+    auto entry = ServiceEntry::create_offer_service(
+        info.service_id,
+        info.instance_id,
+        info.major_version,
+        info.minor_version,
+        info.ttl);
+    auto entry_data = entry.serialize();
+
+    msg->set_payload(entry_data);
+    msg->set_interface_version(1);
+    msg->set_return_code(ReturnCode::E_OK);
+
+    send_message_callback_(msg, config_.multicast_address, config_.port);
 }
 
 void ServiceDiscovery::send_subscribe_eventgroup(const PendingSubscription& sub) {
-    // Implementation depends on transport layer
+    if (!send_message_callback_) return;
+
+    auto msg = Message::create_notification(
+        SOMEIP_SD_SERVICE_ID,
+        SOMEIP_SD_INSTANCE_ID,
+        SOMEIP_SD_METHOD_SUBSCRIBE_EVENTGROUP);
+
+    // Find the eventgroup info to get major version
+    auto key = std::make_tuple(sub.service_id, sub.instance_id, sub.eventgroup_id);
+    auto eg_it = eventgroups_.find(key);
+    MajorVersion major_version = 0xFF;
+    if (eg_it != eventgroups_.end()) {
+        major_version = eg_it->second.major_version;
+    }
+
+    auto entry = ServiceEntry::create_subscribe_eventgroup(
+        sub.service_id,
+        sub.instance_id,
+        sub.eventgroup_id,
+        major_version,
+        config_.ttl_factor_subscriptions.count() / 1000);
+    auto entry_data = entry.serialize();
+
+    msg->set_payload(entry_data);
+    msg->set_interface_version(1);
+    msg->set_return_code(ReturnCode::E_OK);
+
+    send_message_callback_(msg, config_.multicast_address, config_.port);
 }
 
 void ServiceDiscovery::send_subscribe_eventgroup_ack(const ServiceInfo& service,
                                                       EventgroupId eventgroup) {
-    // Implementation depends on transport layer
+    if (!send_message_callback_) return;
+
+    auto msg = Message::create_notification(
+        SOMEIP_SD_SERVICE_ID,
+        SOMEIP_SD_INSTANCE_ID,
+        SOMEIP_SD_METHOD_SUBSCRIBE_EVENTGROUP_ACK);
+
+    auto entry = ServiceEntry::create_subscribe_eventgroup_ack(
+        service.service_id,
+        service.instance_id,
+        eventgroup,
+        service.major_version,
+        service.ttl);
+    auto entry_data = entry.serialize();
+
+    msg->set_payload(entry_data);
+    msg->set_interface_version(1);
+    msg->set_return_code(ReturnCode::E_OK);
+
+    send_message_callback_(msg, config_.multicast_address, config_.port);
 }
 
 void ServiceDiscovery::send_subscribe_eventgroup_nack(const ServiceInfo& service,
                                                        EventgroupId eventgroup) {
-    // Implementation depends on transport layer
+    if (!send_message_callback_) return;
+
+    auto msg = Message::create_notification(
+        SOMEIP_SD_SERVICE_ID,
+        SOMEIP_SD_INSTANCE_ID,
+        SOMEIP_SD_METHOD_SUBSCRIBE_EVENTGROUP_NACK);
+
+    auto entry = ServiceEntry::create_subscribe_eventgroup_nack(
+        service.service_id,
+        service.instance_id,
+        eventgroup);
+    auto entry_data = entry.serialize();
+
+    msg->set_payload(entry_data);
+    msg->set_interface_version(1);
+    msg->set_return_code(ReturnCode::E_OK);
+
+    send_message_callback_(msg, config_.multicast_address, config_.port);
 }
 
 void ServiceDiscovery::check_ttl_expiration() {

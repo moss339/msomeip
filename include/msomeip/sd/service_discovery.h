@@ -4,6 +4,7 @@
 #include "msomeip/sd/service_entry.h"
 #include "msomeip/message/message.h"
 
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <queue>
@@ -15,6 +16,8 @@
 namespace moss {
 namespace msomeip {
 namespace sd {
+
+class UDPTransportBase;
 
 // Service Discovery message format
 // +----------------------------+
@@ -116,6 +119,10 @@ public:
     void set_service_available_handler(AvailabilityHandler handler);
     void set_subscription_handler(SubscriptionHandler handler);
 
+    // Callback for sending messages (set by Application)
+    using SendMessageCallback = std::function<void(MessagePtr msg, const std::string& address, uint16_t port)>;
+    void set_send_message_callback(SendMessageCallback callback) { send_message_callback_ = std::move(callback); }
+
     // Get discovered services
     std::vector<ServiceInfo> get_discovered_services() const;
     std::optional<ServiceInfo> get_service_info(ServiceId service,
@@ -183,6 +190,7 @@ private:
     // Callbacks
     AvailabilityHandler availability_handler_;
     SubscriptionHandler subscription_handler_;
+    SendMessageCallback send_message_callback_;
 
     // Threading
     std::atomic<bool> running_{false};
