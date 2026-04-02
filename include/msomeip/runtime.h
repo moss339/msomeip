@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <mutex>
 
+namespace moss {
 namespace msomeip {
 
 // Runtime is the main entry point for the SOME/IP stack
@@ -93,4 +94,5 @@ private:
     static std::mutex runtime_mutex_;
 };
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

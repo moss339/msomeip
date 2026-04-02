@@ -11,6 +11,7 @@
 #include <memory>
 #include <atomic>
 
+namespace moss {
 namespace msomeip {
 
 // SOME/IP protocol constants
@@ -189,4 +190,5 @@ using SubscriptionHandler = std::function<bool(const SubscriptionInfo&)>;
 using ErrorHandler = std::function<void(ReturnCode)>;
 using TimerCallback = std::function<void()>;
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

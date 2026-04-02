@@ -9,6 +9,7 @@
 #include <cstring>
 #include <iostream>
 
+namespace moss {
 namespace msomeip {
 namespace transport {
 
@@ -156,4 +157,5 @@ void UdpTransport::receive_thread() {
 }
 
 } // namespace transport
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

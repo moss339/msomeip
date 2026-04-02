@@ -6,6 +6,7 @@
 #include <random>
 #include <sstream>
 
+namespace moss {
 namespace msomeip {
 namespace sd {
 
@@ -447,4 +448,5 @@ void ServiceDiscovery::worker_thread() {
 }
 
 } // namespace sd
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

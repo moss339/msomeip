@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 
+namespace moss {
 namespace msomeip {
 
 Message::Message() = default;
@@ -203,4 +204,5 @@ std::string Message::to_string() const {
     return ss.str();
 }
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

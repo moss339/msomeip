@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <cstring>
 
+namespace moss {
 namespace msomeip {
 
 Payload::Payload(PayloadData data) : data_(std::move(data)) {}
@@ -148,4 +149,5 @@ PayloadPtr Payload::copy() const {
     return std::make_shared<Payload>(data_);
 }
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

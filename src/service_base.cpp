@@ -1,5 +1,6 @@
 #include "msomeip/service_base.h"
 
+namespace moss {
 namespace msomeip {
 
 // ==================== ServiceSkeleton ====================
@@ -334,4 +335,5 @@ void ServiceProxy::on_event_received(MessagePtr&& message) {
     }
 }
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

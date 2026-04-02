@@ -1,0 +1,16 @@
+name: msomeip
+description: MOSS SOME/IP Protocol
+
+source:
+  root: .
+
+dependencies:
+  local:
+    - mshm
+
+build:
+  type: library
+  cmake_options:
+    CMAKE_BUILD_TYPE: Release
+    BUILD_EXAMPLES: OFF
+    BUILD_TESTS: OFF

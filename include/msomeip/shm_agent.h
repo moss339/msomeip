@@ -11,6 +11,7 @@
 #include <queue>
 #include <condition_variable>
 
+namespace moss {
 namespace msomeip {
 
 using AvailabilityHandler = std::function<void(ServiceId, InstanceId, bool)>;
@@ -102,4 +103,5 @@ private:
     std::mutex pending_mutex_;
 };
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

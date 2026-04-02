@@ -1,3 +1,26 @@
+cmake_minimum_required(VERSION 3.15)
+project(msomeip_examples LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find required packages
+find_package(Threads REQUIRED)
+
+# Set up mshm library
+set(MSHM_LIBRARY /mnt/data/workspace/moss/mshm/build/src/libmshm.a)
+set(MSHM_INCLUDE_DIR /mnt/data/workspace/moss/mshm/include)
+add_library(mshm STATIC IMPORTED)
+set_target_properties(mshm PROPERTIES IMPORTED_LOCATION ${MSHM_LIBRARY})
+set_target_properties(mshm PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MSHM_INCLUDE_DIR}")
+
+# Set up msomeip library
+set(MSOMEIP_LIBRARY /mnt/data/workspace/moss/msomeip/build/libmsomeip.a)
+set(MSOMEIP_INCLUDE_DIR /mnt/data/workspace/moss/msomeip/include)
+add_library(msomeip STATIC IMPORTED)
+set_target_properties(msomeip PROPERTIES IMPORTED_LOCATION ${MSOMEIP_LIBRARY})
+set_target_properties(msomeip PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MSOMEIP_INCLUDE_DIR}")
+
 # Examples CMakeLists.txt
 
 # Example 1: Simple method call example

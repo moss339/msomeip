@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <arpa/inet.h>
 
+namespace moss {
 namespace msomeip {
 
 ShmAgent::ShmAgent()
@@ -488,4 +489,5 @@ std::optional<ShmAgent::ResponseHeader> ShmAgent::deserialize_header(
     return header;
 }
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

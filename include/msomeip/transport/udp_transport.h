@@ -8,6 +8,7 @@
 #include <atomic>
 #include <array>
 
+namespace moss {
 namespace msomeip {
 namespace transport {
 
@@ -59,4 +60,5 @@ private:
 };
 
 } // namespace transport
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

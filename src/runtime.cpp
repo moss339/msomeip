@@ -4,6 +4,7 @@
 #include <iostream>
 #include <random>
 
+namespace moss {
 namespace msomeip {
 
 // Static members
@@ -184,4 +185,5 @@ void Runtime::on_tcp_connection(uint32_t connection_id, bool connected) {
     // Handle connection state changes if needed
 }
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

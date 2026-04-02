@@ -3,6 +3,7 @@
 #include "msomeip/types.h"
 #include <cstring>
 
+namespace moss {
 namespace msomeip {
 
 class Payload {
@@ -65,4 +66,5 @@ private:
     size_t position_ = 0;
 };
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

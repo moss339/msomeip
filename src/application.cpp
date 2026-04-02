@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+namespace moss {
 namespace msomeip {
 
 Application::Application(std::shared_ptr<Runtime> runtime, std::string name)
@@ -303,4 +304,5 @@ void Application::cleanup_expired_requests() {
     }
 }
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

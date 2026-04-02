@@ -4,6 +4,7 @@
 #include <cstring>
 #include <arpa/inet.h>
 
+namespace moss {
 namespace msomeip {
 namespace sd {
 
@@ -312,4 +313,5 @@ std::unique_ptr<SdOption> SdOption::deserialize(const uint8_t* data, size_t leng
 }
 
 } // namespace sd
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

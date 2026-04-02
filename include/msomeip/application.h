@@ -7,6 +7,7 @@
 #include <mutex>
 #include <future>
 
+namespace moss {
 namespace msomeip {
 
 class Runtime;
@@ -155,4 +156,5 @@ private:
     std::atomic<bool> running_{false};
 };
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

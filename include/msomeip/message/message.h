@@ -3,6 +3,7 @@
 #include "msomeip/types.h"
 #include "msomeip/message/payload.h"
 
+namespace moss {
 namespace msomeip {
 
 // SOME/IP message header structure
@@ -158,4 +159,5 @@ private:
     PayloadPtr payload_;
 };
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

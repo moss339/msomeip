@@ -12,6 +12,7 @@
 #include <thread>
 #include <map>
 
+namespace moss {
 namespace msomeip {
 namespace sd {
 
@@ -194,4 +195,5 @@ private:
 };
 
 } // namespace sd
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

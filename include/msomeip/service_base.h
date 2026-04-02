@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 
+namespace moss {
 namespace msomeip {
 
 // Base class for service skeletons (servers)
@@ -142,4 +143,5 @@ private:
     AvailabilityHandler availability_handler_;
 };
 
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss

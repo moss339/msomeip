@@ -9,6 +9,7 @@
 #include <cstring>
 #include <iostream>
 
+namespace moss {
 namespace msomeip {
 namespace transport {
 
@@ -297,4 +298,5 @@ void TcpTransport::close_connection(uint32_t connection_id) {
 }
 
 } // namespace transport
-} // namespace msomeip
+}  // namespace msomeip
+}  // namespace moss
