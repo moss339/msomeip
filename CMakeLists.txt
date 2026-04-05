@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(BUILD_TESTS "Build tests" ON)
+option(BUILD_EXAMPLES "Build examples" OFF)
 
 project(msomeip VERSION 0.1.0 LANGUAGES CXX)
 
@@ -8,25 +10,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(BUILD_TESTS "Build tests" ON)
-option(BUILD_EXAMPLES "Build examples" OFF)
-
 find_package(Threads REQUIRED)
+find_package(mshm REQUIRED)
 
-# Create mshm imported target using relative path
-set(MSHM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../mshm" CACHE PATH "mshm root directory")
-if(EXISTS "${MSHM_ROOT}/build/src/libmshm.so")
-    set(MSHM_LIBRARY "${MSHM_ROOT}/build/src/libmshm.so")
-else()
-    set(MSHM_LIBRARY "${MSHM_ROOT}/src/libmshm.so")
-endif()
-set(MSHM_INCLUDE_DIR "${MSHM_ROOT}/include")
-
-add_library(mshm::mshm SHARED IMPORTED)
-set_target_properties(mshm::mshm PROPERTIES
-    IMPORTED_LOCATION "${MSHM_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "${MSHM_INCLUDE_DIR}"
-)
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
 # Source files
 set(MSOMEIP_SOURCES
@@ -58,8 +46,8 @@ else()
 endif()
 
 target_include_directories(msomeip PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${MSHM_INCLUDE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
 target_link_libraries(msomeip PUBLIC
@@ -67,12 +55,31 @@ target_link_libraries(msomeip PUBLIC
     mshm::mshm
 )
 
+# Export msomeip target
+export(TARGETS msomeip NAMESPACE msomeip:: FILE msomeipTargets.cmake)
+
 install(TARGETS msomeip
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
+    EXPORT msomeipTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-install(DIRECTORY include/ DESTINATION include)
+install(EXPORT msomeipTargets
+    FILE msomeipTargets.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/msomeip
+)
+
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/msomeipConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/cmake/msomeipConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/msomeip
+)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/msomeipConfig.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/msomeip
+)
 
 if(BUILD_TESTS)
     enable_testing()
