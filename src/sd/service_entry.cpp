@@ -279,13 +279,23 @@ void IPv4MulticastOption::set_address(const std::string& address) {
 }
 
 std::unique_ptr<SdOption> SdOption::deserialize(const uint8_t* data, size_t length) {
-    if (length < 3) return nullptr;
+    if (length < 4) return nullptr;
+
+    // Read length field (bytes 0-1, big-endian)
+    uint16_t option_length = (static_cast<uint16_t>(data[0]) << 8) | data[1];
+
+    // Validate length field matches buffer size
+    size_t expected_total_size = 2 + option_length;
+    if (length < expected_total_size) {
+        return nullptr;
+    }
 
     auto type = static_cast<SdOptionType>(data[2]);
 
     switch (type) {
         case SdOptionType::IPv4_ENDPOINT: {
-            if (length < IPv4EndpointOption::OPTION_SIZE) return nullptr;
+            // IPv4 endpoint option has fixed length of 9 bytes (after length field)
+            if (option_length != 9) return nullptr;
             auto opt = std::make_unique<IPv4EndpointOption>();
             char addr_str[INET_ADDRSTRLEN];
             struct in_addr addr;
@@ -297,7 +307,7 @@ std::unique_ptr<SdOption> SdOption::deserialize(const uint8_t* data, size_t leng
             return opt;
         }
         case SdOptionType::IPv4_MULTICAST: {
-            if (length < IPv4MulticastOption::OPTION_SIZE) return nullptr;
+            if (option_length != 9) return nullptr;
             auto opt = std::make_unique<IPv4MulticastOption>();
             char addr_str[INET_ADDRSTRLEN];
             struct in_addr addr;

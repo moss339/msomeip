@@ -5,6 +5,9 @@
 #include "msomeip/sd/service_discovery.h"
 #include "msomeip/transport/udp_transport.h"
 #include "msomeip/transport/tcp_transport.h"
+#include "msomeip/tp/tp_reassembler.h"
+#include "msomeip/tp/tp_segmenter.h"
+#include "msomeip/shm_agent.h"
 
 #include <memory>
 #include <string>
@@ -24,6 +27,7 @@ public:
         uint16_t udp_port = 0;  // 0 = auto-assign
         uint16_t tcp_port = 0;  // 0 = auto-assign
         bool enable_sd = true;
+        std::string shm_name;   // Shared memory name for routing daemon
         sd::Config sd_config;
     };
 
@@ -58,6 +62,12 @@ public:
     // Service Discovery access
     sd::ServiceDiscovery& get_service_discovery() { return *service_discovery_; }
 
+    // TP Reassembler access
+    tp::TpReassembler& get_tp_reassembler() { return *tp_reassembler_; }
+
+    // ShmAgent access (may be nullptr if not configured)
+    ShmAgent* get_shm_agent() const { return shm_agent_.get(); }
+
     // Get local endpoints
     std::string get_local_address() const { return config_.address; }
     uint16_t get_local_udp_port() const { return udp_transport_->get_local_port(); }
@@ -79,6 +89,8 @@ private:
     std::unique_ptr<transport::UdpTransport> udp_transport_;
     std::unique_ptr<transport::TcpTransport> tcp_transport_;
     std::unique_ptr<sd::ServiceDiscovery> service_discovery_;
+    std::unique_ptr<tp::TpReassembler> tp_reassembler_;
+    std::unique_ptr<ShmAgent> shm_agent_;
 
     // Message handlers
     std::unordered_map<ServiceIdTuple, MessageHandler, ServiceIdTupleHash> service_handlers_;

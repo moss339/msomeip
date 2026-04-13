@@ -75,6 +75,23 @@ bool TcpTransport::listen(const std::string& local_address, uint16_t port) {
 }
 
 bool TcpTransport::connect(const std::string& remote_address, uint16_t port, uint32_t& connection_id) {
+    // Check if connection already exists
+    {
+        std::lock_guard<std::mutex> lock(endpoint_map_mutex_);
+        auto key = std::make_pair(remote_address, port);
+        auto it = endpoint_to_connection_.find(key);
+        if (it != endpoint_to_connection_.end()) {
+            // Verify connection is still valid
+            std::lock_guard<std::mutex> conn_lock(connections_mutex_);
+            if (connections_.find(it->second) != connections_.end()) {
+                connection_id = it->second;
+                return true;
+            }
+            // Connection was closed, remove stale mapping
+            endpoint_to_connection_.erase(it);
+        }
+    }
+
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         return false;
@@ -105,6 +122,12 @@ bool TcpTransport::connect(const std::string& remote_address, uint16_t port, uin
     {
         std::lock_guard<std::mutex> lock(connections_mutex_);
         connections_[connection_id] = std::move(conn);
+    }
+
+    // Store endpoint mapping
+    {
+        std::lock_guard<std::mutex> lock(endpoint_map_mutex_);
+        endpoint_to_connection_[std::make_pair(remote_address, port)] = connection_id;
     }
 
     connections_[connection_id]->receive_thread = std::thread(
@@ -178,6 +201,33 @@ bool TcpTransport::send_to(uint32_t connection_id, const std::vector<uint8_t>& d
 
     ssize_t sent = send(sock, data.data(), data.size(), MSG_NOSIGNAL);
     return sent == static_cast<ssize_t>(data.size());
+}
+
+bool TcpTransport::send_to_endpoint(const std::string& address, uint16_t port, const Message& message) {
+    auto data = message.serialize();
+    return send_to_endpoint(address, port, data);
+}
+
+bool TcpTransport::send_to_endpoint(const std::string& address, uint16_t port, const std::vector<uint8_t>& data) {
+    uint32_t conn_id = get_or_create_connection(address, port);
+    if (conn_id == 0) {
+        return false;
+    }
+    return send_to(conn_id, data);
+}
+
+uint32_t TcpTransport::get_or_create_connection(const std::string& address, uint16_t port) {
+    uint32_t conn_id = 0;
+    if (connect(address, port, conn_id)) {
+        return conn_id;
+    }
+    return 0;
+}
+
+bool TcpTransport::has_connection(const std::string& address, uint16_t port) const {
+    std::lock_guard<std::mutex> lock(endpoint_map_mutex_);
+    auto key = std::make_pair(address, port);
+    return endpoint_to_connection_.find(key) != endpoint_to_connection_.end();
 }
 
 void TcpTransport::set_message_received_callback(MessageReceivedCallback callback) {
@@ -282,18 +332,33 @@ void TcpTransport::connection_receive_thread(uint32_t connection_id) {
 }
 
 void TcpTransport::close_connection(uint32_t connection_id) {
-    std::lock_guard<std::mutex> lock(connections_mutex_);
-    auto it = connections_.find(connection_id);
-    if (it != connections_.end() && it->second) {
-        it->second->running = false;
-        if (it->second->socket_fd >= 0) {
-            close(it->second->socket_fd);
-            it->second->socket_fd = -1;
+    // Get endpoint info before removing connection
+    std::pair<std::string, uint16_t> endpoint;
+    bool has_endpoint = false;
+
+    {
+        std::lock_guard<std::mutex> lock(connections_mutex_);
+        auto it = connections_.find(connection_id);
+        if (it != connections_.end() && it->second) {
+            endpoint = std::make_pair(it->second->remote_address, it->second->remote_port);
+            has_endpoint = true;
+
+            it->second->running = false;
+            if (it->second->socket_fd >= 0) {
+                close(it->second->socket_fd);
+                it->second->socket_fd = -1;
+            }
+            if (it->second->receive_thread.joinable()) {
+                it->second->receive_thread.detach();
+            }
+            connections_.erase(it);
         }
-        if (it->second->receive_thread.joinable()) {
-            it->second->receive_thread.detach();
-        }
-        connections_.erase(it);
+    }
+
+    // Remove endpoint mapping
+    if (has_endpoint) {
+        std::lock_guard<std::mutex> lock(endpoint_map_mutex_);
+        endpoint_to_connection_.erase(endpoint);
     }
 }
 

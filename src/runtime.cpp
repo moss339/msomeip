@@ -95,6 +95,19 @@ bool Runtime::init() {
         udp_transport_->join_multicast(config_.sd_config.multicast_address, config_.address);
     }
 
+    // Initialize TP reassembler
+    tp_reassembler_ = std::make_unique<tp::TpReassembler>(std::chrono::milliseconds(5000));
+
+    // Initialize ShmAgent if configured
+    if (!config_.shm_name.empty()) {
+        shm_agent_ = std::make_unique<ShmAgent>();
+        shm_agent_->set_client_id(client_id_);
+        if (!shm_agent_->connect(config_.shm_name)) {
+            std::cerr << "Warning: Failed to connect to shared memory routing: " << config_.shm_name << std::endl;
+            // Non-fatal: continue without shared memory routing
+        }
+    }
+
     return true;
 }
 
@@ -131,10 +144,40 @@ std::shared_ptr<Application> Runtime::create_application(const std::string& name
 
 bool Runtime::send_message(const Message& message, const std::string& address,
                            uint16_t port, bool reliable) {
+    const auto& payload = message.get_payload();
+    size_t payload_size = payload ? payload->size() : 0;
+
+    // Determine max segment size based on transport
+    size_t max_segment_size = reliable ? tp::TCP_SEGMENT_SIZE : tp::UDP_SEGMENT_SIZE;
+
+    // Check if TP segmentation is needed
+    if (tp::TpSegmenter::needs_segmentation(payload_size, max_segment_size)) {
+        // Segment the message
+        auto segments = tp::TpSegmenter::segment(message, max_segment_size);
+        if (segments.empty()) {
+            return false;
+        }
+
+        // Send all segments
+        bool all_sent = true;
+        for (const auto& segment : segments) {
+            bool sent;
+            if (reliable) {
+                sent = tcp_transport_->send_to_endpoint(address, port, *segment);
+            } else {
+                sent = udp_transport_->send_to(*segment, address, port);
+            }
+            if (!sent) {
+                all_sent = false;
+                break;
+            }
+        }
+        return all_sent;
+    }
+
+    // No segmentation needed, send normally
     if (reliable) {
-        // For reliable transport, we need an existing connection or create one
-        // This is simplified - in real implementation we'd need connection management
-        return false;
+        return tcp_transport_->send_to_endpoint(address, port, message);
     } else {
         return udp_transport_->send_to(message, address, port);
     }
@@ -151,6 +194,21 @@ void Runtime::unregister_service_handler(ServiceId service, InstanceId instance)
 }
 
 void Runtime::on_udp_message_received(MessagePtr&& message, const std::string& address, uint16_t port) {
+    // Check if this is a TP message that needs reassembly
+    if (message->is_tp_message()) {
+        uint32_t request_id = message->get_request_id();
+        if (tp_reassembler_->add_segment(std::move(message))) {
+            // Reassembly complete
+            auto reassembled = tp_reassembler_->reassemble(request_id);
+            if (!reassembled) {
+                return;
+            }
+            message = std::move(reassembled);
+        } else {
+            return;  // Waiting for more segments
+        }
+    }
+
     // Handle SD messages
     if (message->get_service_id() == SOMEIP_SD_SERVICE_ID &&
         message->get_method_id() == SOMEIP_SD_METHOD_ID) {
@@ -170,6 +228,21 @@ void Runtime::on_udp_message_received(MessagePtr&& message, const std::string& a
 
 void Runtime::on_tcp_message_received(MessagePtr&& message, uint32_t connection_id) {
     (void)connection_id;
+
+    // Check if this is a TP message that needs reassembly
+    if (message->is_tp_message()) {
+        uint32_t request_id = message->get_request_id();
+        if (tp_reassembler_->add_segment(std::move(message))) {
+            // Reassembly complete
+            auto reassembled = tp_reassembler_->reassemble(request_id);
+            if (!reassembled) {
+                return;
+            }
+            message = std::move(reassembled);
+        } else {
+            return;  // Waiting for more segments
+        }
+    }
 
     // Route to service handler
     std::lock_guard<std::mutex> lock(handlers_mutex_);

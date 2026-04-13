@@ -2,8 +2,8 @@
 #include "msomeip/sd/service_discovery.h"
 #include "msomeip/sd/service_entry.h"
 
-using namespace msomeip;
-using namespace mmsomeip::sd;
+using namespace moss::msomeip;
+using namespace moss::msomeip::sd;
 
 class ServiceDiscoveryTest : public ::testing::Test {
 protected:

@@ -132,6 +132,11 @@ public:
     std::vector<Endpoint> get_service_endpoints(ServiceId service,
                                                   InstanceId instance) const;
 
+    // Get subscribers for an eventgroup
+    std::vector<Endpoint> get_subscribers(ServiceId service,
+                                           InstanceId instance,
+                                           EventgroupId eventgroup) const;
+
     // Process incoming SD message
     void process_sd_message(const Message& message);
 

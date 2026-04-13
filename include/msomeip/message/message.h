@@ -116,6 +116,14 @@ public:
                message_type_ == MessageType::TP_ERROR;
     }
 
+    bool is_tp_message() const {
+        return message_type_ == MessageType::TP_REQUEST ||
+               message_type_ == MessageType::TP_REQUEST_NO_RETURN ||
+               message_type_ == MessageType::TP_NOTIFICATION ||
+               message_type_ == MessageType::TP_RESPONSE ||
+               message_type_ == MessageType::TP_ERROR;
+    }
+
     ReturnCode get_return_code() const { return return_code_; }
     void set_return_code(ReturnCode code) { return_code_ = code; }
 

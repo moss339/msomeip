@@ -2,7 +2,7 @@
 #include "msomeip/message/message.h"
 #include "msomeip/message/payload.h"
 
-using namespace msomeip;
+using namespace moss::msomeip;
 
 class MessageTest : public ::testing::Test {
 protected:

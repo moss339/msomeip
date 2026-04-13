@@ -31,8 +31,9 @@ void Application::stop() {
     // Complete all pending requests with error
     std::lock_guard<std::mutex> lock(requests_mutex_);
     for (auto& [id, req] : pending_requests_) {
-        auto msg = Message::create_error_response(*req->promise.get_future().get(),
-                                                   ReturnCode::E_NOT_OK);
+        auto dummy_msg = Message::create_request(0, 0, 0, 0);
+        auto error_response = Message::create_error_response(*dummy_msg, ReturnCode::E_NOT_OK);
+        req->promise.set_value(std::move(error_response));
     }
     pending_requests_.clear();
 }
@@ -77,6 +78,10 @@ std::future<MessagePtr> Application::send_request(
             if (runtime_->send_message(*msg, ep.address, ep.port, false)) {
                 return future;
             }
+        } else if (ep.protocol == IpProtocol::TCP && reliable) {
+            if (runtime_->send_message(*msg, ep.address, ep.port, true)) {
+                return future;
+            }
         }
     }
 
@@ -106,6 +111,10 @@ bool Application::send_request_no_return(
             if (runtime_->send_message(*msg, ep.address, ep.port, false)) {
                 return true;
             }
+        } else if (ep.protocol == IpProtocol::TCP && reliable) {
+            if (runtime_->send_message(*msg, ep.address, ep.port, true)) {
+                return true;
+            }
         }
     }
 
@@ -122,6 +131,14 @@ bool Application::subscribe_event(
     std::lock_guard<std::mutex> lock(event_configs_mutex_);
     event_configs_[event] = {service, instance, event, eventgroup, false, false};
 
+    // Try ShmAgent first for inter-process routing
+    if (auto* shm = runtime_->get_shm_agent()) {
+        if (shm->send_subscribe(service, instance, eventgroup, major_version)) {
+            return true;
+        }
+    }
+
+    // Fall back to SD-based subscription
     return runtime_->get_service_discovery().subscribe_eventgroup(
         service, instance, eventgroup, major_version);
 }
@@ -130,6 +147,11 @@ void Application::unsubscribe_event(
     ServiceId service,
     InstanceId instance,
     EventgroupId eventgroup) {
+
+    // Try ShmAgent first
+    if (auto* shm = runtime_->get_shm_agent()) {
+        shm->send_unsubscribe(service, instance, eventgroup);
+    }
 
     runtime_->get_service_discovery().unsubscribe_eventgroup(service, instance, eventgroup);
 }
@@ -141,10 +163,20 @@ void Application::set_event_handler(EventId event, MessageHandler handler) {
 
 void Application::offer_service(const ServiceConfig& config) {
     runtime_->get_service_discovery().offer_service(config);
+
+    // Also register via ShmAgent if available
+    if (auto* shm = runtime_->get_shm_agent()) {
+        shm->send_register_service(config);
+    }
 }
 
 void Application::stop_offer_service(ServiceId service, InstanceId instance) {
     runtime_->get_service_discovery().stop_offer_service(service, instance);
+
+    // Also unregister via ShmAgent if available
+    if (auto* shm = runtime_->get_shm_agent()) {
+        shm->send_unregister_service(service, instance);
+    }
 }
 
 void Application::register_method_handler(MethodId method, MessageHandler handler) {
@@ -210,12 +242,20 @@ void Application::notify_event(EventId event, const PayloadData& payload) {
     auto it = event_configs_.find(event);
     if (it == event_configs_.end()) return;
 
+    auto& cfg = it->second;
     auto msg = Message::create_notification(
-        it->second.service_id, it->second.instance_id, event);
+        cfg.service_id, cfg.instance_id, event);
     msg->set_payload(payload);
 
-    // In real implementation, we'd send to all subscribers
-    // For now, just broadcast
+    // Get subscribers from service discovery
+    auto subscribers = runtime_->get_service_discovery().get_subscribers(
+        cfg.service_id, cfg.instance_id, cfg.eventgroup_id);
+
+    // Send to all subscribers
+    for (const auto& ep : subscribers) {
+        bool reliable = (ep.protocol == IpProtocol::TCP);
+        runtime_->send_message(*msg, ep.address, ep.port, reliable);
+    }
 }
 
 void Application::offer_field(const EventConfig& config,

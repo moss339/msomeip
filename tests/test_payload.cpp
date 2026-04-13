@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "msomeip/message/payload.h"
 
-using namespace msomeip;
+using namespace moss::msomeip;
 
 class PayloadTest : public ::testing::Test {
 protected:

@@ -190,6 +190,18 @@ std::vector<Endpoint> ServiceDiscovery::get_service_endpoints(ServiceId service,
     return {};
 }
 
+std::vector<Endpoint> ServiceDiscovery::get_subscribers(ServiceId service,
+                                                         InstanceId instance,
+                                                         EventgroupId eventgroup) const {
+    std::lock_guard<std::mutex> lock(services_mutex_);
+    auto key = std::make_tuple(service, instance, eventgroup);
+    auto it = eventgroups_.find(key);
+    if (it != eventgroups_.end()) {
+        return it->second.subscribers;
+    }
+    return {};
+}
+
 void ServiceDiscovery::process_sd_message(const Message& message) {
     const auto& payload = message.get_payload();
     if (!payload || payload->size() < 12) return;
@@ -332,6 +344,27 @@ void ServiceDiscovery::handle_subscribe_eventgroup(const ServiceEntry& entry,
     }
 
     if (accepted) {
+        // Store subscriber endpoints in eventgroup info
+        auto eg_key = std::make_tuple(entry.get_service_id(), entry.get_instance_id(), entry.get_eventgroup_id());
+        auto& eg_info = eventgroups_[eg_key];
+        eg_info.service_id = entry.get_service_id();
+        eg_info.instance_id = entry.get_instance_id();
+        eg_info.eventgroup_id = entry.get_eventgroup_id();
+        eg_info.major_version = entry.get_major_version();
+
+        // Add subscriber endpoints (avoid duplicates)
+        for (const auto& ep : sub_info.endpoints) {
+            auto it = std::find_if(eg_info.subscribers.begin(), eg_info.subscribers.end(),
+                [&](const Endpoint& existing) {
+                    return existing.address == ep.address &&
+                           existing.port == ep.port &&
+                           existing.protocol == ep.protocol;
+                });
+            if (it == eg_info.subscribers.end()) {
+                eg_info.subscribers.push_back(ep);
+            }
+        }
+
         send_subscribe_eventgroup_ack(it->second, entry.get_eventgroup_id());
     } else {
         send_subscribe_eventgroup_nack(it->second, entry.get_eventgroup_id());

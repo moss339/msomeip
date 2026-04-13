@@ -347,8 +347,92 @@ std::vector<Endpoint> ShmAgent::lookup_service_endpoints(ServiceId service, Inst
     return result;
 }
 
-std::vector<Endpoint> ShmAgent::lookup_subscribers(ServiceId, InstanceId, EventgroupId) {
-    return {};
+std::vector<Endpoint> ShmAgent::lookup_subscribers(ServiceId service, InstanceId instance,
+                                                    EventgroupId eventgroup) {
+    std::vector<Endpoint> result;
+
+    if (!connected_.load() || shm_data_ == nullptr) {
+        return result;
+    }
+
+    // Build payload for LOOKUP_SUBSCRIBERS command
+    std::vector<uint8_t> payload;
+
+    uint16_t svc_id = htons(service);
+    payload.insert(payload.end(),
+                  reinterpret_cast<const uint8_t*>(&svc_id),
+                  reinterpret_cast<const uint8_t*>(&svc_id) + sizeof(svc_id));
+
+    uint16_t inst_id = htons(instance);
+    payload.insert(payload.end(),
+                  reinterpret_cast<const uint8_t*>(&inst_id),
+                  reinterpret_cast<const uint8_t*>(&inst_id) + sizeof(inst_id));
+
+    uint16_t eg_id = htons(eventgroup);
+    payload.insert(payload.end(),
+                  reinterpret_cast<const uint8_t*>(&eg_id),
+                  reinterpret_cast<const uint8_t*>(&eg_id) + sizeof(eg_id));
+
+    // Send LOOKUP_SUBSCRIBERS command
+    uint32_t seq = sequence_.fetch_add(1);
+    {
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        pending_requests_[seq] = RouteCommandType::LOOKUP_SUBSCRIBERS;
+    }
+
+    if (!send_command(RouteCommandType::LOOKUP_SUBSCRIBERS, payload)) {
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        pending_requests_.erase(seq);
+        return result;
+    }
+
+    // Wait for response with timeout
+    std::unique_lock<std::mutex> lock(response_mutex_);
+    if (response_cv_.wait_for(lock, std::chrono::milliseconds(500),
+        [this] { return !response_queue_.empty(); })) {
+        auto response_data = response_queue_.front();
+        response_queue_.pop();
+        lock.unlock();
+
+        // Parse LOOKUP_RESULT response
+        if (response_data.size() >= 4) {
+            RouteResponseType type = static_cast<RouteResponseType>(response_data[0]);
+            if (type == RouteResponseType::LOOKUP_RESULT && response_data.size() >= 6) {
+                uint32_t ep_count;
+                std::memcpy(&ep_count, response_data.data() + 1, 4);
+                ep_count = ntohl(ep_count);
+
+                size_t offset = 5;
+                for (uint32_t i = 0; i < ep_count && offset + 4 <= response_data.size(); ++i) {
+                    if (offset + 1 > response_data.size()) break;
+
+                    uint8_t addr_len = response_data[offset];
+                    offset += 1;
+
+                    if (offset + addr_len + 3 > response_data.size()) break;
+
+                    Endpoint ep;
+                    ep.address.assign(reinterpret_cast<const char*>(response_data.data() + offset), addr_len);
+                    offset += addr_len;
+
+                    std::memcpy(&ep.port, response_data.data() + offset, 2);
+                    ep.port = ntohs(ep.port);
+                    offset += 2;
+
+                    ep.protocol = static_cast<IpProtocol>(response_data[offset]);
+                    offset += 1;
+
+                    result.push_back(ep);
+                }
+            }
+        }
+    } else {
+        lock.unlock();
+        std::lock_guard<std::mutex> plock(pending_mutex_);
+        pending_requests_.erase(seq);
+    }
+
+    return result;
 }
 
 void ShmAgent::worker_thread() {

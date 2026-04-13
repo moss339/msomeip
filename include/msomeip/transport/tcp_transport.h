@@ -7,6 +7,7 @@
 #include <thread>
 #include <atomic>
 #include <unordered_map>
+#include <map>
 #include <mutex>
 
 namespace moss {
@@ -36,9 +37,19 @@ public:
     void start();
     void stop();
 
-    // Send message
+    // Send message by connection ID
     bool send_to(uint32_t connection_id, const Message& message);
     bool send_to(uint32_t connection_id, const std::vector<uint8_t>& data);
+
+    // Send message by endpoint (auto-connect if needed)
+    bool send_to_endpoint(const std::string& address, uint16_t port, const Message& message);
+    bool send_to_endpoint(const std::string& address, uint16_t port, const std::vector<uint8_t>& data);
+
+    // Get or create connection for endpoint
+    uint32_t get_or_create_connection(const std::string& address, uint16_t port);
+
+    // Check if connection exists for endpoint
+    bool has_connection(const std::string& address, uint16_t port) const;
 
     // Set callbacks
     void set_message_received_callback(MessageReceivedCallback callback);
@@ -70,6 +81,10 @@ private:
     std::atomic<uint32_t> next_connection_id_{1};
     std::unordered_map<uint32_t, std::unique_ptr<Connection>> connections_;
     std::mutex connections_mutex_;
+
+    // Endpoint to connection ID mapping for outgoing connections
+    std::map<std::pair<std::string, uint16_t>, uint32_t> endpoint_to_connection_;
+    mutable std::mutex endpoint_map_mutex_;
 
     MessageReceivedCallback message_callback_;
     ConnectionCallback connection_callback_;

@@ -24,6 +24,8 @@ set(MSOMEIP_SOURCES
     src/sd/service_entry.cpp
     src/transport/udp_transport.cpp
     src/transport/tcp_transport.cpp
+    src/tp/tp_segmenter.cpp
+    src/tp/tp_reassembler.cpp
     src/runtime.cpp
     src/application.cpp
     src/service_base.cpp
@@ -84,4 +86,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/msomeipConfig.cmake
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
