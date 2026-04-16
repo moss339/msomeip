@@ -58,7 +58,7 @@ target_link_libraries(msomeip PUBLIC
 )
 
 # Export msomeip target
-export(TARGETS msomeip NAMESPACE msomeip:: FILE msomeipTargets.cmake)
+export(TARGETS msomeip NAMESPACE msomeip:: FILE cmake/msomeipTargets.cmake)
 
 install(TARGETS msomeip
     EXPORT msomeipTargets
